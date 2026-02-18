@@ -45,6 +45,10 @@ func TestEvaluate_MathFunctions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, math.Pi, res)
 
+	res, err = Evaluate("π")
+	assert.NoError(t, err)
+	assert.Equal(t, math.Pi, res)
+
 	// E constant
 	res, err = Evaluate("e")
 	assert.NoError(t, err)
