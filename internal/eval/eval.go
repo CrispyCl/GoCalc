@@ -16,6 +16,7 @@ var (
 func Evaluate(expression string) (float64, error) {
 	expression = strings.ReplaceAll(expression, "√", "sqrt")
 	expression = strings.ReplaceAll(expression, "^", "**")
+	expression = strings.ReplaceAll(expression, "π", "pi")
 
 	env := map[string]any{
 		"pi":   math.Pi,
