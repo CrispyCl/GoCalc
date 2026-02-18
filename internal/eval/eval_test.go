@@ -92,4 +92,5 @@ func TestEvaluate_Errors(t *testing.T) {
 	// Unexpected return type
 	_, err = Evaluate("10 > 5")
 	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnexpectedReturnType)
 }

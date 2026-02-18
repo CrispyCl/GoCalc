@@ -1,11 +1,16 @@
 package eval
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 
 	"github.com/expr-lang/expr"
+)
+
+var (
+	ErrUnexpectedReturnType = errors.New("unexpected return type")
 )
 
 func Evaluate(expression string) (float64, error) {
@@ -23,12 +28,12 @@ func Evaluate(expression string) (float64, error) {
 
 	program, err := expr.Compile(expression, expr.Env(env))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to compile expression %q: %w", expression, err)
 	}
 
 	output, err := expr.Run(program, env)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to run expression: %w", err)
 	}
 
 	switch v := output.(type) {
@@ -41,6 +46,6 @@ func Evaluate(expression string) (float64, error) {
 	case float32:
 		return float64(v), nil
 	default:
-		return 0, fmt.Errorf("unexpected return type: %T", v)
+		return 0, fmt.Errorf("%w: got %T (value %v)", ErrUnexpectedReturnType, v, v)
 	}
 }
