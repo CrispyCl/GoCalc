@@ -70,7 +70,7 @@ func TestEvaluate_MathFunctions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.InDelta(t, 0.0, res, 1e-9)
 
-	// Tan of Pi/2
+	// Tan of Pi/4
 	res, err = Evaluate("tan(pi / 4)")
 	assert.NoError(t, err)
 	assert.InDelta(t, 1.0, res, 1e-9)
