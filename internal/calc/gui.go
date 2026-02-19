@@ -8,7 +8,7 @@ import (
 
 func (c *Calculator) LoadUI(app fyne.App) {
 	c.output = &widget.Label{Alignment: fyne.TextAlignTrailing}
-	c.output.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	c.output.TextStyle = fyne.TextStyle{Monospace: true}
 
 	c.window = app.NewWindow("GoCalc")
 
