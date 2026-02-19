@@ -43,13 +43,18 @@ func (c *Calculator) LoadUI(app fyne.App) {
 		c.eqButton(),
 	)
 
-	c.window.SetContent(container.NewVBox(
-		container.NewPadded(c.output),
-		widget.NewSeparator(),
+	buttonsContainer := container.NewVBox(
 		header,
 		mathBlock,
 		mainDigits,
 		footer,
+	)
+
+	c.window.SetContent(container.NewBorder(
+		container.NewVBox(container.NewPadded(c.output), widget.NewSeparator()),
+		buttonsContainer,
+		nil, nil,
+		nil,
 	))
 
 	c.setupEvents()
