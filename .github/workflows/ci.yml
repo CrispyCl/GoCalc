@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: 'stable'
           cache: true
       
       - name: Download Go modules
@@ -24,3 +24,43 @@ jobs:
       
       - name: Run Eval Tests
         run: go test -v -race ./internal/eval/...
+
+  gui_tests:
+    needs: unit_tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev \
+          libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev xvfb
+      
+      - name: Download Go modules
+        run: go mod download
+      
+      - name: Run GUI Tests (Linux)
+        if: runner.os == 'Linux'
+        env:
+          DISPLAY: :99
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 & 
+          go test -v ./internal/calc/...
+      
+      - name: Run GUI Tests (Windows)
+        if: runner.os == 'Windows'
+        run: go test -v ./internal/calc/...
