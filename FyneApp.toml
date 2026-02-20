@@ -1,0 +1,8 @@
+Website = "https://github.com/CrispyCl/GoCalc"
+Version = "1.0.0"
+Build = 1
+
+[Details]
+Icon = "../../Icon.png"
+Name = "GoCalc"
+ID = "com.github.crispy.gocalc"
