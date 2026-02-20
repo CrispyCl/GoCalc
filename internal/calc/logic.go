@@ -2,6 +2,7 @@ package calc
 
 import (
 	"log"
+	"math"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,18 @@ import (
 func (c *Calculator) display(text string) {
 	c.expression = text
 	c.output.SetText(text)
+
+	if c.scroll != nil {
+		c.scroll.Offset.X = c.scroll.Content.MinSize().Width - c.scroll.Size().Width
+		if c.scroll.Offset.X < 0 {
+			c.scroll.Offset.X = 0
+		}
+		c.scroll.Refresh()
+	}
+
+	if c.window != nil && c.window.Content() != nil {
+		c.window.Content().Refresh()
+	}
 }
 
 func (c *Calculator) evaluate() {
@@ -30,7 +43,9 @@ func (c *Calculator) evaluate() {
 		return
 	}
 
-	c.display(strconv.FormatFloat(result, 'f', -1, 64))
+	rounded := math.Round(result*math.Pow(10, 10)) / math.Pow(10, 10)
+
+	c.display(strconv.FormatFloat(rounded, 'g', 10, 64))
 }
 
 func (c *Calculator) clear() {

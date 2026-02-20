@@ -1,64 +1,73 @@
 package calc
 
 import (
+	"gocalc/internal/calc/gui"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
+var (
+	screenHeight = float32(380)
+	screenWeight = float32(300)
+)
+
 func (c *Calculator) LoadUI(app fyne.App) {
-	c.output = &widget.Label{Alignment: fyne.TextAlignTrailing}
+	c.output = &widget.Label{
+		Alignment:  fyne.TextAlignTrailing,
+		Truncation: fyne.TextTruncateOff,
+	}
 	c.output.TextStyle = fyne.TextStyle{Monospace: true}
+
+	scrollContainer := container.NewHScroll(c.output)
+	scrollContainer.Direction = container.ScrollHorizontalOnly
+	c.scroll = scrollContainer
 
 	c.window = app.NewWindow("GoCalc")
 
 	header := container.NewGridWithColumns(4,
-		c.warningButton("C", c.clear),
-		c.strButton("π"),
-		c.strButton("e"),
-		c.addButton("⌫", c.backspace),
+		c.warningButton("C", c.clear), c.strButton("π"), c.strButton("e"), c.addButton("⌫", c.backspace),
 	)
-
-	mathBlock := container.NewGridWithColumns(4,
-		c.strButton("sin("),
-		c.strButton("cos("),
-		c.strButton("tan("),
-		c.strButton("√("),
-		c.strButton("("),
-		c.strButton(")"),
-		c.strButton("^"),
-		c.strButton("/"),
+	mathBlock := container.NewGridWithRows(2,
+		container.NewGridWithColumns(4, c.strButton("sin("), c.strButton("cos("), c.strButton("tan("), c.strButton("√(")),
+		container.NewGridWithColumns(4, c.strButton("("), c.strButton(")"), c.strButton("^"), c.strButton("/")),
 	)
-
-	mainDigits := container.NewGridWithColumns(4,
-		c.strButton("7"), c.strButton("8"), c.strButton("9"), c.opButton("*"),
-		c.strButton("4"), c.strButton("5"), c.strButton("6"), c.opButton("-"),
-		c.strButton("1"), c.strButton("2"), c.strButton("3"), c.opButton("+"),
+	mainDigits := container.NewGridWithRows(3,
+		container.NewGridWithColumns(4, c.strButton("7"), c.strButton("8"), c.strButton("9"), c.opButton("*")),
+		container.NewGridWithColumns(4, c.strButton("4"), c.strButton("5"), c.strButton("6"), c.opButton("-")),
+		container.NewGridWithColumns(4, c.strButton("1"), c.strButton("2"), c.strButton("3"), c.opButton("+")),
 	)
-
 	footer := container.NewGridWithColumns(2,
-		container.NewGridWithColumns(2,
-			c.strButton("."), c.strButton("0"),
-		),
+		container.NewGridWithColumns(2, c.strButton("."), c.strButton("0")),
 		c.eqButton(),
 	)
 
-	buttonsContainer := container.NewVBox(
+	displayContainer := container.NewThemeOverride(
+		container.New(gui.NewTopLayout(),
+			container.NewVBox(
+				container.NewPadded(c.scroll),
+				widget.NewSeparator(),
+			),
+		),
+		gui.NewLargeTextTheme(theme.DefaultTheme(), c.window, c.output),
+	)
+	buttonsContainer := container.New(gui.NewAdaptiveLayout(7),
 		header,
-		mathBlock,
-		mainDigits,
+		mathBlock.Objects[0], mathBlock.Objects[1],
+		mainDigits.Objects[0], mainDigits.Objects[1], mainDigits.Objects[2],
 		footer,
 	)
 
-	c.window.SetContent(container.NewBorder(
-		container.NewVBox(container.NewPadded(c.output), widget.NewSeparator()),
-		buttonsContainer,
-		nil, nil,
-		nil,
-	))
+	content := container.NewStack(
+		container.NewPadded(displayContainer),
+		container.NewPadded(buttonsContainer),
+	)
 
 	c.setupEvents()
-	c.window.Resize(fyne.NewSize(300, 300))
+	c.window.SetContent(content)
+	c.window.Resize(fyne.NewSize(screenWeight, screenHeight))
 	c.window.Show()
 }
 

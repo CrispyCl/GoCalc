@@ -85,7 +85,7 @@ func TestCalculator_Scientific(t *testing.T) {
 		{
 			name:     "Constant E",
 			taps:     []string{"e", "="},
-			expected: "2.718281828459045",
+			expected: "2.718281828",
 		},
 	}
 
