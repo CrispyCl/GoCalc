@@ -64,3 +64,31 @@ jobs:
       - name: Run GUI Tests (Windows)
         if: runner.os == 'Windows'
         run: go test -v ./internal/calc/...
+
+  build:
+    needs: gui_tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [windows, linux, android]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: Install fyne-cross
+        run: go install github.com/fyne-io/fyne-cross@latest
+
+      - name: Build with fyne-cross
+        run: fyne-cross ${{ matrix.target }} ./cmd/calc/
+
+      - name: Upload Artifacts
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.target }}
+          path: fyne-cross/dist/${{ matrix.target }}*/**
