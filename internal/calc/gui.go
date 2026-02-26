@@ -1,6 +1,8 @@
 package calc
 
 import (
+	"strings"
+
 	"gocalc/internal/calc/gui"
 
 	"fyne.io/fyne/v2"
@@ -12,6 +14,7 @@ import (
 var (
 	screenHeight = float32(380)
 	screenWeight = float32(300)
+	operators    = "+-*/^"
 )
 
 func (c *Calculator) LoadUI(app fyne.App) {
@@ -79,7 +82,53 @@ func (c *Calculator) addButton(label string, tapped func()) *widget.Button {
 
 func (c *Calculator) strButton(label string) *widget.Button {
 	return c.addButton(label, func() {
-		c.display(c.expression + label)
+		// If "error" is on screen, clear it before any new input
+		if len(c.expression) == 1 && c.expression[0] == "error" {
+			c.expression = []string{}
+		}
+
+		expr := c.expression
+
+		// Decimal Point Validation
+		if label == "." {
+			if len(expr) == 0 {
+				c.display([]string{"0", "."})
+				return
+			}
+
+			lastNumHasDot := false
+			for i := len(expr) - 1; i >= 0; i-- {
+				if strings.ContainsAny(expr[i], operators+"()") {
+					break
+				}
+				if expr[i] == "." {
+					lastNumHasDot = true
+					break
+				}
+			}
+
+			if lastNumHasDot {
+				return // Ignore if current number already has a dot
+			}
+		}
+
+		// Mathematical Operators Validation
+		if strings.ContainsAny(label, operators) {
+			if len(expr) == 0 {
+				if label == "-" {
+					c.display([]string{"-"})
+				}
+				return
+			}
+
+			// If the last character is already an operator, replace it with the new one
+			lastToken := expr[len(expr)-1]
+			if strings.ContainsAny(lastToken, operators) {
+				expr = expr[:len(expr)-1]
+			}
+		}
+
+		c.display(append(expr, label))
 	})
 }
 

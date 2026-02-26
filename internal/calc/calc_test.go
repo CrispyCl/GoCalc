@@ -149,7 +149,7 @@ func TestCalculator_Shortcuts(t *testing.T) {
 	clipboard := app.Clipboard()
 
 	// Test Copy
-	c.display("720+80")
+	c.display([]string{"720+80"})
 	c.onCopyShortcut(&fyne.ShortcutCopy{Clipboard: clipboard})
 	assert.Equal(t, "720+80", clipboard.Content())
 

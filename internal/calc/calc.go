@@ -7,7 +7,7 @@ import (
 )
 
 type Calculator struct {
-	expression string
+	expression []string
 
 	output  *widget.Label
 	scroll  *container.Scroll
@@ -17,6 +17,7 @@ type Calculator struct {
 
 func NewCalculator() *Calculator {
 	return &Calculator{
-		buttons: make(map[string]*widget.Button),
+		buttons:    make(map[string]*widget.Button),
+		expression: []string{},
 	}
 }

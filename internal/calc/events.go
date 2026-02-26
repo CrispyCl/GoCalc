@@ -2,6 +2,7 @@ package calc
 
 import (
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 )
@@ -40,9 +41,9 @@ func (c *Calculator) onPasteShortcut(shortcut fyne.Shortcut) {
 		return
 	}
 
-	c.display(c.expression + content)
+	c.display(append(c.expression, content))
 }
 
 func (c *Calculator) onCopyShortcut(shortcut fyne.Shortcut) {
-	shortcut.(*fyne.ShortcutCopy).Clipboard.SetContent(c.expression)
+	shortcut.(*fyne.ShortcutCopy).Clipboard.SetContent(strings.Join(c.expression, ""))
 }

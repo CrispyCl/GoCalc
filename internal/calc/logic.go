@@ -9,8 +9,10 @@ import (
 	"gocalc/internal/eval"
 )
 
-func (c *Calculator) display(text string) {
-	c.expression = text
+func (c *Calculator) display(expr []string) {
+	c.expression = expr
+
+	text := strings.Join(expr, "")
 	c.output.SetText(text)
 
 	if c.scroll != nil {
@@ -27,37 +29,35 @@ func (c *Calculator) display(text string) {
 }
 
 func (c *Calculator) evaluate() {
-	if c.expression == "" || c.expression == "error" {
+	rawExpression := strings.Join(c.expression, "")
+
+	if rawExpression == "" || rawExpression == "error" {
 		return
 	}
 
-	if strings.Contains(c.expression, "error") {
-		c.display("error")
-		return
-	}
-
-	result, err := eval.Evaluate(c.expression)
+	result, err := eval.Evaluate(rawExpression)
 	if err != nil {
 		log.Println("Error in calculation", err)
-		c.display("error")
+		c.display([]string{"error"})
 		return
 	}
 
 	rounded := math.Round(result*math.Pow(10, 10)) / math.Pow(10, 10)
+	resStr := strconv.FormatFloat(rounded, 'g', 10, 64)
 
-	c.display(strconv.FormatFloat(rounded, 'g', 10, 64))
+	c.display([]string{resStr})
 }
 
 func (c *Calculator) clear() {
-	c.display("")
+	c.display([]string{})
 }
 
 func (c *Calculator) backspace() {
-	if c.expression == "" || c.expression == "error" {
+	if len(c.expression) == 0 {
 		c.clear()
 		return
 	}
 
-	runes := []rune(c.expression)
-	c.display(string(runes[:len(runes)-1]))
+	newExpr := c.expression[:len(c.expression)-1]
+	c.display(newExpr)
 }
