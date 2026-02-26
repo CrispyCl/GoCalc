@@ -1,65 +1,86 @@
 package calc
 
 import (
+	"strings"
+
+	"gocalc/internal/calc/gui"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
+var (
+	screenHeight = float32(380)
+	screenWeight = float32(300)
+	operators    = "+-*/^"
+)
+
 func (c *Calculator) LoadUI(app fyne.App) {
-	c.output = &widget.Label{Alignment: fyne.TextAlignTrailing}
+	c.output = &widget.Label{
+		Alignment:  fyne.TextAlignTrailing,
+		Truncation: fyne.TextTruncateOff,
+	}
 	c.output.TextStyle = fyne.TextStyle{Monospace: true}
+
+	scrollContainer := container.NewHScroll(c.output)
+	scrollContainer.Direction = container.ScrollHorizontalOnly
+	c.scroll = scrollContainer
 
 	c.window = app.NewWindow("GoCalc")
 
 	header := container.NewGridWithColumns(4,
-		c.warningButton("C", c.clear),
-		c.strButton("π"),
-		c.strButton("e"),
-		c.addButton("⌫", c.backspace),
+		c.warningButton("C", c.clear), c.strButton("π"), c.strButton("e"), c.addButton("⌫", c.backspace),
 	)
-
-	mathBlock := container.NewGridWithColumns(4,
-		c.strButton("sin("),
-		c.strButton("cos("),
-		c.strButton("tan("),
-		c.strButton("√("),
-		c.strButton("("),
-		c.strButton(")"),
-		c.strButton("^"),
-		c.strButton("/"),
+	mathBlock := container.NewGridWithRows(2,
+		container.NewGridWithColumns(4, c.strButton("sin("), c.strButton("cos("), c.strButton("tan("), c.strButton("√(")),
+		container.NewGridWithColumns(4, c.strButton("("), c.strButton(")"), c.strButton("^"), c.strButton("/")),
 	)
-
-	mainDigits := container.NewGridWithColumns(4,
-		c.strButton("7"), c.strButton("8"), c.strButton("9"), c.opButton("*"),
-		c.strButton("4"), c.strButton("5"), c.strButton("6"), c.opButton("-"),
-		c.strButton("1"), c.strButton("2"), c.strButton("3"), c.opButton("+"),
+	mainDigits := container.NewGridWithRows(3,
+		container.NewGridWithColumns(4, c.strButton("7"), c.strButton("8"), c.strButton("9"), c.opButton("*")),
+		container.NewGridWithColumns(4, c.strButton("4"), c.strButton("5"), c.strButton("6"), c.opButton("-")),
+		container.NewGridWithColumns(4, c.strButton("1"), c.strButton("2"), c.strButton("3"), c.opButton("+")),
 	)
-
 	footer := container.NewGridWithColumns(2,
-		container.NewGridWithColumns(2,
-			c.strButton("."), c.strButton("0"),
-		),
+		container.NewGridWithColumns(2, c.strButton("."), c.strButton("0")),
 		c.eqButton(),
 	)
 
-	buttonsContainer := container.NewVBox(
-		header,
-		mathBlock,
-		mainDigits,
-		footer,
+	displayContainer := container.NewThemeOverride(
+		container.New(gui.NewTopLayout(),
+			container.NewVBox(
+				container.NewPadded(c.scroll),
+				widget.NewSeparator(),
+			),
+		),
+		gui.NewAdaptiveTextTheme(theme.DefaultTheme(), c.window, 0.07, nil),
 	)
 
-	c.window.SetContent(container.NewBorder(
-		container.NewVBox(container.NewPadded(c.output), widget.NewSeparator()),
-		buttonsContainer,
-		nil, nil,
-		nil,
-	))
+	buttonsMaxSize := 22
+	buttonsContainer := container.NewThemeOverride(
+		container.New(gui.NewAdaptiveLayout(7),
+			header,
+			mathBlock.Objects[0], mathBlock.Objects[1],
+			mainDigits.Objects[0], mainDigits.Objects[1], mainDigits.Objects[2],
+			footer,
+		),
+		gui.NewAdaptiveTextTheme(theme.DefaultTheme(), c.window, 0.04, &buttonsMaxSize),
+	)
+
+	content := container.NewStack(
+		container.NewPadded(displayContainer),
+		container.NewPadded(buttonsContainer),
+	)
 
 	c.setupEvents()
-	c.window.Resize(fyne.NewSize(300, 300))
+	c.window.SetContent(content)
+	c.window.Resize(fyne.NewSize(screenWeight, screenHeight))
 	c.window.Show()
+
+	if c.window.Content() != nil {
+		c.window.Content().Refresh()
+	}
 }
 
 func (c *Calculator) addButton(label string, tapped func()) *widget.Button {
@@ -70,7 +91,69 @@ func (c *Calculator) addButton(label string, tapped func()) *widget.Button {
 
 func (c *Calculator) strButton(label string) *widget.Button {
 	return c.addButton(label, func() {
-		c.display(c.expression + label)
+		// If "error" is on screen, clear it before any new input
+		if len(c.expression) == 1 && c.expression[0] == "error" {
+			c.expression = []string{}
+		}
+
+		expr := c.expression
+
+		// Decimal Point Validation
+		if label == "." {
+			if len(expr) == 0 {
+				c.display([]string{"0."})
+				return
+			}
+
+			for i := len(expr) - 1; i >= 0; i-- {
+				if strings.ContainsAny(expr[i], operators+"(") && !strings.ContainsAny(expr[i], "0123456789") {
+					break
+				}
+				if expr[i] == "." || expr[i] == ")" {
+					return
+				}
+			}
+
+			lastToken := expr[len(expr)-1]
+			if strings.ContainsAny(lastToken, operators+"(") {
+				if !strings.ContainsAny(lastToken, "0123456789") {
+					c.display(append(expr, "0."))
+				}
+				return
+			}
+		}
+
+		// Mathematical Operators Validation
+		if strings.ContainsAny(label, operators) {
+			if len(expr) == 0 || len(expr) == 1 && strings.ContainsAny(expr[0], operators) && !strings.ContainsAny(expr[0], "0123456789") {
+				if label == "-" {
+					c.display([]string{"-"})
+				}
+				return
+			}
+
+			// Is last simbol or prelast is opening bracket check
+			exprText := strings.Join(expr, "")
+			isFirstBracket := len(exprText) > 0 && exprText[len(exprText)-1] == '('
+			isSecondBracket := len(exprText) > 1 && exprText[len(exprText)-2] == '(' && strings.ContainsAny(string(exprText[len(exprText)-1]), operators)
+
+			if isFirstBracket || isSecondBracket {
+				if label == "-" && exprText[len(exprText)-1] != '-' {
+					c.display(append(expr, label))
+				}
+				return
+			}
+
+			// If the last character is already an operator, replace it with the new one
+			lastToken := expr[len(expr)-1]
+
+			if strings.ContainsAny(lastToken, operators) && !strings.ContainsAny(lastToken, "0123456789") {
+				c.display(append(expr[:len(expr)-1], label))
+				return
+			}
+		}
+
+		c.display(append(expr, label))
 	})
 }
 

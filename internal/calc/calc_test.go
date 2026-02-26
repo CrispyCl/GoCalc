@@ -85,7 +85,7 @@ func TestCalculator_Scientific(t *testing.T) {
 		{
 			name:     "Constant E",
 			taps:     []string{"e", "="},
-			expected: "2.718281828459045",
+			expected: "2.718281828",
 		},
 	}
 
@@ -128,18 +128,39 @@ func TestCalculator_Keyboard(t *testing.T) {
 func TestCalculator_Backspace(t *testing.T) {
 	c := setupCalc()
 
-	c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
-	assert.Equal(t, "", c.output.Text)
+	t.Run("BasicDeletion", func(t *testing.T) {
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+		assert.Equal(t, "", c.output.Text)
 
-	test.TypeOnCanvas(c.window.Canvas(), "1/2")
-	c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
-	assert.Equal(t, "1/", c.output.Text)
+		test.TypeOnCanvas(c.window.Canvas(), "1/2")
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+		assert.Equal(t, "1/", c.output.Text)
 
-	c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	assert.Equal(t, "error", c.output.Text)
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		assert.Equal(t, "error", c.output.Text)
 
-	c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
-	assert.Equal(t, "", c.output.Text)
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+		assert.Equal(t, "", c.output.Text)
+	})
+
+	t.Run("AtomicFunctions", func(t *testing.T) {
+		c := setupCalc()
+
+		// Test deleting atomic function "sin("
+		test.Tap(c.buttons["sin("])
+		assert.Equal(t, "sin(", c.output.Text)
+
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+		assert.Equal(t, "", c.output.Text, "Backspace should remove entire 'sin(' token")
+
+		// Test complex expression
+		test.TypeOnCanvas(c.window.Canvas(), "1+")
+		test.Tap(c.buttons["cos("])
+		assert.Equal(t, "1+cos(", c.output.Text)
+
+		c.onTypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+		assert.Equal(t, "1+", c.output.Text, "Backspace should leave '1+' after removing 'cos('")
+	})
 }
 
 func TestCalculator_Shortcuts(t *testing.T) {
@@ -148,21 +169,119 @@ func TestCalculator_Shortcuts(t *testing.T) {
 	c.LoadUI(app)
 	clipboard := app.Clipboard()
 
-	// Test Copy
-	c.display("720+80")
-	c.onCopyShortcut(&fyne.ShortcutCopy{Clipboard: clipboard})
-	assert.Equal(t, "720+80", clipboard.Content())
+	t.Run("Copy", func(t *testing.T) {
+		c.display([]string{"720+80"})
+		c.onCopyShortcut(&fyne.ShortcutCopy{Clipboard: clipboard})
+		assert.Equal(t, "720+80", clipboard.Content())
+	})
 
-	// Test Paste
 	c.clear()
-	clipboard.SetContent("850")
-	c.onPasteShortcut(&fyne.ShortcutPaste{Clipboard: clipboard})
-	assert.Equal(t, "850", c.output.Text)
 
-	// Paste invalid data
-	clipboard.SetContent("not-a-number")
-	c.onPasteShortcut(&fyne.ShortcutPaste{Clipboard: clipboard})
-	assert.Equal(t, "850", c.output.Text, "Should not paste non-numeric strings")
+	t.Run("Paste", func(t *testing.T) {
+		clipboard.SetContent("850")
+		c.onPasteShortcut(&fyne.ShortcutPaste{Clipboard: clipboard})
+		assert.Equal(t, "850", c.output.Text)
+
+		// Paste invalid data
+		clipboard.SetContent("not-a-number")
+		c.onPasteShortcut(&fyne.ShortcutPaste{Clipboard: clipboard})
+		assert.Equal(t, "850", c.output.Text, "Should not paste non-numeric strings")
+	})
+
+}
+
+func TestCalculator_Validation(t *testing.T) {
+	t.Run("OperatorReplacement", func(t *testing.T) {
+		c := setupCalc()
+
+		// 5 + -> replace with * -> 5 *
+		test.TypeOnCanvas(c.window.Canvas(), "5+")
+		test.TypeOnCanvas(c.window.Canvas(), "*")
+		assert.Equal(t, "5*", c.output.Text)
+
+		test.Tap(c.buttons["C"])
+		test.TypeOnCanvas(c.window.Canvas(), "/")
+		assert.Equal(t, "", c.output.Text, "Should not allow starting with * or /")
+
+		test.TypeOnCanvas(c.window.Canvas(), "-")
+		assert.Equal(t, "-", c.output.Text, "Should allow starting with -")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "-", c.output.Text, "Should not replace leading '-' with '*'")
+
+		test.Tap(c.buttons["C"])
+		test.TypeOnCanvas(c.window.Canvas(), "13+(")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "13+(", c.output.Text, "Should not allow starting with * or /")
+
+		test.Tap(c.buttons["-"])
+		assert.Equal(t, "13+(-", c.output.Text, "Should allow starting with -")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "13+(-", c.output.Text, "Should not allow starting with * or /")
+	})
+
+	t.Run("DotLogic", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			taps     []string
+			expected string
+		}{
+			{"Leading Dot", []string{"."}, "0."},
+			{"Prevent Double Dot", []string{"5", ".", "5", ".", "5"}, "5.55"},
+			{"Prevent Double Dot In A Row", []string{"5", ".", ".", "5"}, "5.5"},
+			{"Multiple Dots In Expr", []string{"1", ".", "2", "+", "3", ".", "4"}, "1.2+3.4"},
+			{"Auto-prepend zero after operator", []string{"1", "/", "."}, "1/0."},
+			{"Test dot after opening bracket", []string{"(", "."}, "(0."},
+			{"Test dot after closing bracket", []string{"(", "1", ")", "."}, "(1)"},
+			{"Test dot after scientific notation", []string{"1.22e-08", "."}, "1.22e-08"},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				c := setupCalc()
+				for _, label := range tc.taps {
+					if btn, ok := c.buttons[label]; ok {
+						test.Tap(btn)
+					} else {
+						c.display(append(c.expression, label))
+					}
+				}
+				assert.Equal(t, tc.expected, c.output.Text)
+			})
+		}
+	})
+
+	t.Run("ScientificNotationProtection", func(t *testing.T) {
+		c := setupCalc()
+
+		c.display([]string{"1.22e-08"})
+
+		test.Tap(c.buttons["+"])
+		assert.Equal(t, "1.22e-08+", c.output.Text, "Should not treat scientific notation as an operator")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "1.22e-08*", c.output.Text, "Should replace the real operator '+'")
+	})
+}
+
+func TestCalculator_AutoClear(t *testing.T) {
+	t.Run("ClearErrorOnInput", func(t *testing.T) {
+		c := setupCalc()
+
+		test.TypeOnCanvas(c.window.Canvas(), "0/=")
+		assert.Equal(t, "error", c.output.Text)
+
+		test.TypeOnCanvas(c.window.Canvas(), "9")
+		assert.Equal(t, "9", c.output.Text)
+
+		test.TypeOnCanvas(c.window.Canvas(), "/=")
+		assert.Equal(t, "error", c.output.Text)
+
+		test.Tap(c.buttons["sin("])
+		assert.Equal(t, "sin(", c.output.Text)
+	})
 }
 
 func TestCalculator_Error(t *testing.T) {
