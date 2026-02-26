@@ -101,22 +101,24 @@ func (c *Calculator) strButton(label string) *widget.Button {
 		// Decimal Point Validation
 		if label == "." {
 			if len(expr) == 0 {
-				c.display([]string{"0", "."})
+				c.display([]string{"0."})
 				return
 			}
 
 			for i := len(expr) - 1; i >= 0; i-- {
-				if strings.ContainsAny(expr[i], operators+"()") && !strings.ContainsAny(expr[i], "0123456789") {
+				if strings.ContainsAny(expr[i], operators+"(") && !strings.ContainsAny(expr[i], "0123456789") {
 					break
 				}
-				if expr[i] == "." {
+				if expr[i] == "." || expr[i] == ")" {
 					return
 				}
 			}
 
 			lastToken := expr[len(expr)-1]
-			if strings.ContainsAny(lastToken, operators+"(") && !strings.ContainsAny(lastToken, "0123456789") {
-				c.display(append(expr, "0."))
+			if strings.ContainsAny(lastToken, operators+"(") {
+				if !strings.ContainsAny(lastToken, "0123456789") {
+					c.display(append(expr, "0."))
+				}
 				return
 			}
 		}
@@ -134,7 +136,8 @@ func (c *Calculator) strButton(label string) *widget.Button {
 			lastToken := expr[len(expr)-1]
 
 			if strings.ContainsAny(lastToken, operators) && !strings.ContainsAny(lastToken, "0123456789") {
-				expr = expr[:len(expr)-1]
+				c.display(append(expr[:len(expr)-1], label))
+				return
 			}
 		}
 

@@ -221,7 +221,9 @@ func TestCalculator_Validation(t *testing.T) {
 			{"Prevent Double Dot In A Row", []string{"5", ".", ".", "5"}, "5.5"},
 			{"Multiple Dots In Expr", []string{"1", ".", "2", "+", "3", ".", "4"}, "1.2+3.4"},
 			{"Auto-prepend zero after operator", []string{"1", "/", "."}, "1/0."},
-			{"Test dot after bracket", []string{"(", "."}, "(0."},
+			{"Test dot after opening bracket", []string{"(", "."}, "(0."},
+			{"Test dot after closing bracket", []string{"(", "1", ")", "."}, "(1)"},
+			{"Test dot after scientific notation", []string{"1.22e-08", "."}, "1.22e-08"},
 		}
 
 		for _, tc := range testCases {
@@ -231,7 +233,7 @@ func TestCalculator_Validation(t *testing.T) {
 					if btn, ok := c.buttons[label]; ok {
 						test.Tap(btn)
 					} else {
-						test.TypeOnCanvas(c.window.Canvas(), label)
+						c.display(append(c.expression, label))
 					}
 				}
 				assert.Equal(t, tc.expected, c.output.Text)
