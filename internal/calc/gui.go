@@ -54,13 +54,18 @@ func (c *Calculator) LoadUI(app fyne.App) {
 				widget.NewSeparator(),
 			),
 		),
-		gui.NewLargeTextTheme(theme.DefaultTheme(), c.window, c.output),
+		gui.NewAdaptiveTextTheme(theme.DefaultTheme(), c.window, 0.07, nil),
 	)
-	buttonsContainer := container.New(gui.NewAdaptiveLayout(7),
+
+	buttonsMaxSize := 22
+	buttonsContainer := container.NewThemeOverride(
+		container.New(gui.NewAdaptiveLayout(7),
 		header,
 		mathBlock.Objects[0], mathBlock.Objects[1],
 		mainDigits.Objects[0], mainDigits.Objects[1], mainDigits.Objects[2],
 		footer,
+		),
+		gui.NewAdaptiveTextTheme(theme.DefaultTheme(), c.window, 0.04, &buttonsMaxSize),
 	)
 
 	content := container.NewStack(
@@ -72,6 +77,10 @@ func (c *Calculator) LoadUI(app fyne.App) {
 	c.window.SetContent(content)
 	c.window.Resize(fyne.NewSize(screenWeight, screenHeight))
 	c.window.Show()
+
+	if c.window.Content() != nil {
+		c.window.Content().Refresh()
+	}
 }
 
 func (c *Calculator) addButton(label string, tapped func()) *widget.Button {

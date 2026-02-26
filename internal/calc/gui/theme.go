@@ -3,36 +3,38 @@ package gui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
-type largeTextTheme struct {
+type adaptiveTextTheme struct {
 	fyne.Theme
-	window fyne.Window
-	label  *widget.Label
+	window  fyne.Window
+	factor  float32
+	maxSize *int
 }
 
-func NewLargeTextTheme(t fyne.Theme, w fyne.Window, l *widget.Label) *largeTextTheme {
-	return &largeTextTheme{Theme: t, window: w, label: l}
+func NewAdaptiveTextTheme(t fyne.Theme, w fyne.Window, factor float32, maxSize *int) *adaptiveTextTheme {
+	return &adaptiveTextTheme{Theme: t, window: w, factor: factor, maxSize: maxSize}
 }
 
-func (t *largeTextTheme) Size(name fyne.ThemeSizeName) float32 {
+func (t *adaptiveTextTheme) Size(name fyne.ThemeSizeName) float32 {
 	if name == theme.SizeNameText {
-		if t.window == nil || t.window.Content() == nil {
-			return 28
+		var h float32 = 380
+
+		if t.window != nil && t.window.Content() != nil {
+			currentH := t.window.Content().Size().Height
+			if currentH > 10 {
+				h = currentH
+			}
 		}
 
-		h := t.window.Content().Size().Height
-		if h <= 0 {
-			return 28
-		}
+		res := h * t.factor
 
-		res := h * 0.07
-
-		if res < 24 {
-			return 24
+		if res < 14 {
+			return 14
 		}
-		if res > 45 {
+		if t.maxSize != nil && res > float32(*t.maxSize) {
+			return float32(*t.maxSize)
+		} else if res > 45 {
 			return 45
 		}
 		return res
