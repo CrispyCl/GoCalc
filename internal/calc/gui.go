@@ -132,6 +132,18 @@ func (c *Calculator) strButton(label string) *widget.Button {
 				return
 			}
 
+			// Is last simbol or prelast is opening bracket check
+			exprText := strings.Join(expr, "")
+			isFirstBracket := len(exprText) > 0 && exprText[len(exprText)-1] == '('
+			isSecondBracket := len(exprText) > 1 && exprText[len(exprText)-2] == '(' && strings.ContainsAny(string(exprText[len(exprText)-1]), operators)
+
+			if isFirstBracket || isSecondBracket {
+				if label == "-" && exprText[len(exprText)-1] != '-' {
+					c.display(append(expr, label))
+				}
+				return
+			}
+
 			// If the last character is already an operator, replace it with the new one
 			lastToken := expr[len(expr)-1]
 

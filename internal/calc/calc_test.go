@@ -208,6 +208,18 @@ func TestCalculator_Validation(t *testing.T) {
 
 		test.Tap(c.buttons["*"])
 		assert.Equal(t, "-", c.output.Text, "Should not replace leading '-' with '*'")
+
+		test.Tap(c.buttons["C"])
+		test.TypeOnCanvas(c.window.Canvas(), "13+(")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "13+(", c.output.Text, "Should not allow starting with * or /")
+
+		test.Tap(c.buttons["-"])
+		assert.Equal(t, "13+(-", c.output.Text, "Should allow starting with -")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "13+(-", c.output.Text, "Should not allow starting with * or /")
 	})
 
 	t.Run("DotLogic", func(t *testing.T) {
