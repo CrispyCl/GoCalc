@@ -199,14 +199,15 @@ func TestCalculator_Validation(t *testing.T) {
 		test.TypeOnCanvas(c.window.Canvas(), "*")
 		assert.Equal(t, "5*", c.output.Text)
 
-		// Should not allow starting with * or /
 		test.Tap(c.buttons["C"])
 		test.TypeOnCanvas(c.window.Canvas(), "/")
-		assert.Equal(t, "", c.output.Text)
+		assert.Equal(t, "", c.output.Text, "Should not allow starting with * or /")
 
-		// Should allow starting with -
 		test.TypeOnCanvas(c.window.Canvas(), "-")
-		assert.Equal(t, "-", c.output.Text)
+		assert.Equal(t, "-", c.output.Text, "Should allow starting with -")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "-", c.output.Text, "Should not replace leading '-' with '*'")
 	})
 
 	t.Run("DotLogic", func(t *testing.T) {
@@ -219,6 +220,8 @@ func TestCalculator_Validation(t *testing.T) {
 			{"Prevent Double Dot", []string{"5", ".", "5", ".", "5"}, "5.55"},
 			{"Prevent Double Dot In A Row", []string{"5", ".", ".", "5"}, "5.5"},
 			{"Multiple Dots In Expr", []string{"1", ".", "2", "+", "3", ".", "4"}, "1.2+3.4"},
+			{"Auto-prepend zero after operator", []string{"1", "/", "."}, "1/0."},
+			{"Test dot after bracket", []string{"(", "."}, "(0."},
 		}
 
 		for _, tc := range testCases {
@@ -234,6 +237,18 @@ func TestCalculator_Validation(t *testing.T) {
 				assert.Equal(t, tc.expected, c.output.Text)
 			})
 		}
+	})
+
+	t.Run("ScientificNotationProtection", func(t *testing.T) {
+		c := setupCalc()
+
+		c.display([]string{"1.22e-08"})
+
+		test.Tap(c.buttons["+"])
+		assert.Equal(t, "1.22e-08+", c.output.Text, "Should not treat scientific notation as an operator")
+
+		test.Tap(c.buttons["*"])
+		assert.Equal(t, "1.22e-08*", c.output.Text, "Should replace the real operator '+'")
 	})
 }
 
