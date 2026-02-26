@@ -60,10 +60,10 @@ func (c *Calculator) LoadUI(app fyne.App) {
 	buttonsMaxSize := 22
 	buttonsContainer := container.NewThemeOverride(
 		container.New(gui.NewAdaptiveLayout(7),
-		header,
-		mathBlock.Objects[0], mathBlock.Objects[1],
-		mainDigits.Objects[0], mainDigits.Objects[1], mainDigits.Objects[2],
-		footer,
+			header,
+			mathBlock.Objects[0], mathBlock.Objects[1],
+			mainDigits.Objects[0], mainDigits.Objects[1], mainDigits.Objects[2],
+			footer,
 		),
 		gui.NewAdaptiveTextTheme(theme.DefaultTheme(), c.window, 0.04, &buttonsMaxSize),
 	)
@@ -105,25 +105,25 @@ func (c *Calculator) strButton(label string) *widget.Button {
 				return
 			}
 
-			lastNumHasDot := false
 			for i := len(expr) - 1; i >= 0; i-- {
-				if strings.ContainsAny(expr[i], operators+"()") {
+				if strings.ContainsAny(expr[i], operators+"()") && !strings.ContainsAny(expr[i], "0123456789") {
 					break
 				}
 				if expr[i] == "." {
-					lastNumHasDot = true
-					break
+					return
 				}
 			}
 
-			if lastNumHasDot {
-				return // Ignore if current number already has a dot
+			lastToken := expr[len(expr)-1]
+			if strings.ContainsAny(lastToken, operators+"(") && !strings.ContainsAny(lastToken, "0123456789") {
+				c.display(append(expr, "0."))
+				return
 			}
 		}
 
 		// Mathematical Operators Validation
 		if strings.ContainsAny(label, operators) {
-			if len(expr) == 0 {
+			if len(expr) == 0 || len(expr) == 1 && strings.ContainsAny(expr[0], operators) && !strings.ContainsAny(expr[0], "0123456789") {
 				if label == "-" {
 					c.display([]string{"-"})
 				}
@@ -132,7 +132,8 @@ func (c *Calculator) strButton(label string) *widget.Button {
 
 			// If the last character is already an operator, replace it with the new one
 			lastToken := expr[len(expr)-1]
-			if strings.ContainsAny(lastToken, operators) {
+
+			if strings.ContainsAny(lastToken, operators) && !strings.ContainsAny(lastToken, "0123456789") {
 				expr = expr[:len(expr)-1]
 			}
 		}
