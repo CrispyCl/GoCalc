@@ -70,7 +70,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [windows, linux, android]
+        include:
+          - target: windows
+            arch: amd64
+          - target: windows
+            arch: arm64
+          - target: linux
+            arch: amd64
+          - target: linux
+            arch: arm64
+          - target: android
+            arch: "*"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -84,11 +95,30 @@ jobs:
         run: go install github.com/fyne-io/fyne-cross@latest
 
       - name: Build with fyne-cross
-        run: fyne-cross ${{ matrix.target }} ./cmd/calc/
+        run: fyne-cross ${{ matrix.target }} -arch=${{ matrix.arch }} ./cmd/calc/
+
+      - name: Rename & Prepare Artifact
+        run: |
+          mkdir -p release-dist
+          
+          ARCH_NAME="${{ matrix.arch }}"
+          if [ "$ARCH_NAME" = "*" ]; then ARCH_NAME="all"; fi
+
+          EXT=""
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.zip 1> /dev/null 2>&1; then EXT="zip"; fi
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.tar.xz 1> /dev/null 2>&1; then EXT="tar.xz"; fi
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.apk 1> /dev/null 2>&1; then EXT="apk"; fi
+
+          if [ -n "$EXT" ]; then
+            find fyne-cross/dist/${{ matrix.target }}* -name "*.$EXT" -exec cp {} release-dist/GoCalc-${{ matrix.target }}-$ARCH_NAME.$EXT \;
+          else
+            echo "No archive found with expected extensions"
+            exit 1
+          fi
 
       - name: Upload Artifacts
         if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
-          path: fyne-cross/dist/${{ matrix.target }}*/**
+          name: GoCalc-${{ matrix.target }}-${{ matrix.arch == '*' && 'all' || matrix.arch }}
+          path: release-dist/
