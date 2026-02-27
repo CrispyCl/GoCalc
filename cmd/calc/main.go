@@ -14,12 +14,18 @@ func main() {
 
 	icon, err := fyne.LoadResourceFromPath("Icon.png")
 	if err != nil {
-		log.Println("Не удалось загрузить иконку:", err)
+		log.Println("Failed to load icon:", err)
 	} else {
 		myApp.SetIcon(icon)
 	}
 
 	c := calc.NewCalculator()
 	c.LoadUI(myApp)
+
+	myApp.Lifecycle().SetOnStopped(func() {
+		log.Println("Cleanup tasks completed. Application stopped.")
+	})
+
+	log.Println("Starting the application...")
 	myApp.Run()
 }
