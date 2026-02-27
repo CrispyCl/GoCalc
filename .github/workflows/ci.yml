@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: true
+      
+      - name: Download Go modules
+        run: go mod download
+      
+      - name: Run Eval Tests
+        run: go test -v -race ./internal/eval/...
+
+  gui_tests:
+    needs: unit_tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev \
+          libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev xvfb
+      
+      - name: Download Go modules
+        run: go mod download
+      
+      - name: Run GUI Tests (Linux)
+        if: runner.os == 'Linux'
+        env:
+          DISPLAY: :99
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 & 
+          go test -v ./internal/calc/...
+      
+      - name: Run GUI Tests (Windows)
+        if: runner.os == 'Windows'
+        run: go test -v ./internal/calc/...
+
+  build:
+    needs: gui_tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: windows
+            arch: amd64
+          - target: windows
+            arch: arm64
+          - target: linux
+            arch: amd64
+          - target: linux
+            arch: arm64
+          - target: android
+            arch: "*"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: Install fyne-cross
+        run: go install github.com/fyne-io/fyne-cross@latest
+
+      - name: Build with fyne-cross
+        run: fyne-cross ${{ matrix.target }} -arch=${{ matrix.arch }} ./cmd/calc/
+
+      - name: Rename & Prepare Artifact
+        run: |
+          mkdir -p release-dist
+          
+          ARCH_NAME="${{ matrix.arch }}"
+          if [ "$ARCH_NAME" = "*" ]; then ARCH_NAME="all"; fi
+
+          EXT=""
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.zip 1> /dev/null 2>&1; then EXT="zip"; fi
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.tar.xz 1> /dev/null 2>&1; then EXT="tar.xz"; fi
+          if ls fyne-cross/dist/${{ matrix.target }}*/*.apk 1> /dev/null 2>&1; then EXT="apk"; fi
+
+          if [ -n "$EXT" ]; then
+            find fyne-cross/dist/${{ matrix.target }}* -name "*.$EXT" -exec cp {} release-dist/GoCalc-${{ matrix.target }}-$ARCH_NAME.$EXT \;
+          else
+            echo "No archive found with expected extensions"
+            exit 1
+          fi
+
+      - name: Upload Artifacts
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoCalc-${{ matrix.target }}-${{ matrix.arch == '*' && 'all' || matrix.arch }}
+          path: release-dist/
